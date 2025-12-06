@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "jtr-mcp-server": {
+      "command": "bash",
+      "args": ["./scripts/run_server.sh"],
+      "env": {}
+    }
+  }
+}
