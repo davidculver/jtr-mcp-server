@@ -3,7 +3,8 @@ import subprocess
 import re
 from pathlib import Path
 from typing import List, Optional, Dict, Tuple
-from .config import JOHN_BINARY, UNSHADOW_BINARY, SESSIONS_DIR, logger
+from .config import JOHN_BINARY, SESSIONS_DIR, logger
+from .utils.unshadow_impl import unshadow as unshadow_python
 
 
 class JohnTheRipperWrapper:
@@ -11,7 +12,6 @@ class JohnTheRipperWrapper:
     
     def __init__(self):
         self.john_binary = JOHN_BINARY
-        self.unshadow_binary = UNSHADOW_BINARY
     
     def get_formats(self) -> List[str]:
         """Get list of supported hash formats"""
@@ -24,14 +24,33 @@ class JohnTheRipperWrapper:
             )
             
             if result.returncode == 0:
-                # Parse the output - formats are comma-separated
-                formats_text = result.stdout.strip()
-                # Extract format names (they're comma-separated)
-                formats = [f.strip() for f in formats_text.split(',')]
-                # Clean up any that have descriptions in parentheses
-                formats = [f.split('(')[0].strip() for f in formats]
-                return [f for f in formats if f and not f.startswith('(')]
+                output = result.stdout.strip()
+                logger.debug(f"Formats output (first 500 chars): {output[:500]}")
+                
+                # Try comma-separated parsing first
+                if ',' in output:
+                    formats = [f.strip() for f in output.split(',')]
+                    formats = [f.split('(')[0].strip() for f in formats]
+                    formats = [f for f in formats if f and not f.startswith('(')]
+                    return formats
+                
+                # Try line-by-line parsing
+                lines = output.split('\n')
+                formats = []
+                for line in lines:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        # Extract format name (first word)
+                        parts = line.split()
+                        if parts:
+                            fmt = parts[0].strip()
+                            if fmt:
+                                formats.append(fmt)
+                
+                return formats
             else:
+                logger.error(f"get_formats failed with return code: {result.returncode}")
+                logger.error(f"stderr: {result.stderr}")
                 return []
         except Exception as e:
             logger.error(f"Error getting formats: {e}")
@@ -84,15 +103,9 @@ class JohnTheRipperWrapper:
             logger.info(f"John returncode: {result.returncode}")
             logger.debug(f"Full output: {output}")
             
-            # Determine success - john considers it successful if:
-            # 1. Passwords were cracked in this run (contains "1g", "2g", etc.)
-            # 2. Session completed normally
-            # 3. No passwords left to crack (already cracked)
-            # 4. Shows cracked passwords
-            
+            # Determine success
             success = False
             
-            # Check various success indicators
             if "password hash cracked" in output.lower():
                 success = True
                 logger.info("Success: Found 'password hash cracked' in output")
@@ -102,11 +115,10 @@ class JohnTheRipperWrapper:
             elif "no password hashes left to crack" in output.lower():
                 success = True
                 logger.info("Success: No hashes left to crack (already done)")
-            elif re.search(r'\d+g ', output):  # Matches "1g ", "2g ", etc.
+            elif re.search(r'\d+g ', output):
                 success = True
                 logger.info("Success: Found password crack indicator (Ng)")
             elif result.returncode == 0:
-                # Return code 0 generally means success
                 success = True
                 logger.info("Success: Return code 0")
             
@@ -117,6 +129,8 @@ class JohnTheRipperWrapper:
             return False, "Command timed out after 5 minutes"
         except Exception as e:
             logger.error(f"Error running john: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return False, f"Error running john: {e}"
     
     def show_cracked(self, hash_file: str, format_type: Optional[str] = None) -> Tuple[bool, List[str]]:
@@ -145,12 +159,11 @@ class JohnTheRipperWrapper:
             if not output:
                 return True, []
             
-            # Parse output - each line is username:password:...
+            # Parse output
             lines = output.split('\n')
             cracked = []
             
             for line in lines:
-                # Skip summary lines like "1 password hash cracked, 0 left"
                 if 'password' in line.lower() and 'cracked' in line.lower():
                     continue
                 if line.strip() and ':' in line:
@@ -164,26 +177,38 @@ class JohnTheRipperWrapper:
     
     def unshadow(self, passwd_file: str, shadow_file: str, output_file: str) -> Tuple[bool, str]:
         """
-        Combine /etc/passwd and /etc/shadow files
+        Combine /etc/passwd and /etc/shadow files (using Python implementation)
         
         Returns: (success, message)
         """
         try:
-            with open(output_file, 'w') as outfile:
-                result = subprocess.run(
-                    [self.unshadow_binary, passwd_file, shadow_file],
-                    stdout=outfile,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    timeout=30
-                )
+            logger.info("Using Python unshadow implementation")
             
-            if result.returncode == 0:
+            # Read input files
+            with open(passwd_file, 'r') as f:
+                passwd_content = f.read()
+            
+            with open(shadow_file, 'r') as f:
+                shadow_content = f.read()
+            
+            # Combine using Python implementation
+            success, combined_content, error_msg = unshadow_python(passwd_content, shadow_content)
+            
+            if success:
+                # Write output file
+                with open(output_file, 'w') as f:
+                    f.write(combined_content)
+                
+                logger.info(f"Combined file created: {output_file}")
                 return True, f"Combined file created: {output_file}"
             else:
-                return False, f"Error: {result.stderr}"
+                logger.error(f"Unshadow failed: {error_msg}")
+                return False, f"Error: {error_msg}"
                 
         except Exception as e:
+            logger.error(f"Error in unshadow: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return False, f"Error running unshadow: {e}"
     
     def get_version(self) -> str:
@@ -196,7 +221,6 @@ class JohnTheRipperWrapper:
                 timeout=5
             )
             
-            # First line has version info
             first_line = result.stdout.split('\n')[0]
             return first_line
             

@@ -4,8 +4,10 @@ from typing import Dict
 import os
 
 # John the Ripper configuration
-JOHN_BINARY = "john"
-UNSHADOW_BINARY = "unshadow"
+# Use full path in Docker, fallback to plain command for local
+import shutil
+JOHN_BINARY = shutil.which("john") or "/opt/john/john" if Path("/opt/john/john").exists() else "john"
+UNSHADOW_BINARY = "unshadow"  # Works when built from source
 UNIQUE_BINARY = "unique"
 
 # Command syntax
@@ -17,9 +19,18 @@ WORDLISTS_DIR = PROJECT_ROOT / "wordlists" / "common"
 SESSIONS_DIR = PROJECT_ROOT / "sessions"
 RESULTS_DIR = PROJECT_ROOT / "results"
 
-# Temp directory - use john's snap home which it can access
+# Temp directory - detect environment
+# In Docker: use /app/temp (our working directory)
+# With snap: use snap home directory
 JOHN_SNAP_HOME = Path.home() / "snap" / "john-the-ripper" / "current"
-TEMP_DIR = JOHN_SNAP_HOME  # John can access its own snap home
+
+if JOHN_SNAP_HOME.exists():
+    # Running with snap installation
+    TEMP_DIR = JOHN_SNAP_HOME
+else:
+    # Running in Docker or from source build
+    TEMP_DIR = PROJECT_ROOT / "temp"
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 # Log file for debugging
 LOG_FILE = PROJECT_ROOT / "mcp_server.log"
@@ -40,6 +51,7 @@ logger = logging.getLogger("jtr-mcp")
 logger.info(f"Config loaded - TEMP_DIR: {TEMP_DIR}")
 logger.info(f"Config loaded - WORDLISTS_DIR: {WORDLISTS_DIR}")
 logger.info(f"Config loaded - LOG_FILE: {LOG_FILE}")
+logger.info(f"Config loaded - Environment: {'Docker/Source' if not JOHN_SNAP_HOME.exists() else 'Snap'}")
 
 # Common Linux hash formats
 HASH_FORMATS: Dict[str, str] = {
