@@ -10,60 +10,38 @@ from .tools.status import check_status_tool
 from .jtr_wrapper import JohnTheRipperWrapper
 from .config import HASH_FORMATS, logger
 
-logger.info("="*50)
-logger.info("JTR MCP Server Starting...")
-logger.info("="*50)
+logger.info("Starting JTR MCP Server")
 
-# Create server instance
 app = Server("jtr-mcp-server")
-
-# Initialize JTR wrapper
 jtr = JohnTheRipperWrapper()
-logger.info("JTR wrapper initialized")
 
 
 @app.list_tools()
 async def list_tools() -> list[Tool]:
-    """List available MCP tools"""
-    logger.info("list_tools() called")
+    logger.debug("list_tools called")
     return [
         Tool(
             name="crack_passwords",
-            description=(
-                "Crack password hashes using John the Ripper. "
-                "Supports dictionary attacks with optional word mangling rules. "
-                "Automatically detects hash format or you can specify it."
-            ),
+            description="Crack password hashes using dictionary attacks with john",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "hash_file_content": {
                         "type": "string",
-                        "description": (
-                            "Content of hash file in john format. "
-                            "Examples: 'user:$6$salt$hash' for SHA-512, "
-                            "'user:$1$salt$hash' for MD5-crypt"
-                        )
+                        "description": "Hash file content in john format (e.g. user:$6$salt$hash)"
                     },
                     "wordlist": {
                         "type": "string",
-                        "description": (
-                            "Wordlist to use: 'small' (17 words, fast), "
-                            "'medium' (10k words), 'large' (rockyou, 14M words), "
-                            "or path to custom wordlist file"
-                        ),
+                        "description": "Wordlist: 'small', 'medium', 'large', or custom path",
                         "default": "small"
                     },
                     "hash_format": {
                         "type": "string",
-                        "description": (
-                            "Hash format (optional, auto-detects if not specified). "
-                            "Common formats: md5crypt, sha256crypt, sha512crypt, bcrypt, descrypt"
-                        )
+                        "description": "Hash format (optional, auto-detects). E.g. md5crypt, sha512crypt"
                     },
                     "use_rules": {
                         "type": "boolean",
-                        "description": "Apply word mangling rules (slower but more thorough)",
+                        "description": "Apply word mangling rules",
                         "default": False
                     }
                 },
@@ -72,11 +50,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="unshadow_files",
-            description=(
-                "Combine /etc/passwd and /etc/shadow files for password cracking. "
-                "This is the standard workflow for cracking Linux password files. "
-                "Returns combined content to use with crack_passwords tool."
-            ),
+            description="Combine passwd and shadow files for cracking",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -94,11 +68,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="manage_session",
-            description=(
-                "Manage John the Ripper cracking sessions. "
-                "List existing sessions, delete sessions, or get session info. "
-                "Useful for managing long-running password cracks."
-            ),
+            description="Manage john cracking sessions (list, delete, info)",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -118,10 +88,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="check_status",
-            description=(
-                "Check John the Ripper status and see recently cracked passwords. "
-                "Shows total count of cracked passwords and recent entries from john.pot file."
-            ),
+            description="Check status and view recently cracked passwords",
             inputSchema={
                 "type": "object",
                 "properties": {},
@@ -151,9 +118,7 @@ async def list_tools() -> list[Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-    """Handle tool calls"""
-    logger.info(f"call_tool() called: {name}")
-    logger.info(f"Arguments: {arguments}")
+    logger.debug(f"tool call: {name} with {len(str(arguments))} bytes args")
     
     if name == "crack_passwords":
         result = await crack_passwords_tool(
@@ -164,19 +129,19 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         )
         
         if result["success"]:
-            response = f"✅ Password cracking completed!\n\n"
-            response += f"Cracked {result['cracked_count']} password(s)\n"
+            response = f"Password cracking completed\n\n"
+            response += f"Cracked: {result['cracked_count']} password(s)\n"
             response += f"Wordlist: {result['wordlist_used']}\n"
             response += f"Format: {result['format_used']}\n\n"
-            
+
             if result["cracked_passwords"]:
                 response += "Cracked passwords:\n"
                 for entry in result["cracked_passwords"]:
                     response += f"  {entry}\n"
             else:
-                response += "No passwords cracked with this wordlist.\n"
+                response += "No passwords cracked with this wordlist\n"
         else:
-            response = f"❌ Error: {result.get('error', 'Unknown error')}"
+            response = f"Error: {result.get('error', 'Unknown error')}"
         
         return [TextContent(type="text", text=response)]
     
@@ -187,15 +152,15 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         )
         
         if result["success"]:
-            response = f"✅ Files combined successfully!\n\n"
+            response = f"Files combined successfully\n\n"
             response += f"Combined {result['line_count']} user entries\n\n"
-            response += "Combined content (ready for crack_passwords):\n"
+            response += "Combined content:\n"
             response += "```\n"
             response += result["combined_content"]
             response += "\n```\n\n"
-            response += "💡 Tip: Copy the combined content above and use it with the crack_passwords tool."
+            response += "Use this output with crack_passwords tool"
         else:
-            response = f"❌ Error: {result.get('error', 'Unknown error')}"
+            response = f"Error: {result.get('error', 'Unknown error')}"
         
         return [TextContent(type="text", text=response)]
     
@@ -207,22 +172,22 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         
         if result["success"]:
             if result["action"] == "list":
-                response = f"📋 Cracking Sessions ({result['count']} total)\n\n"
+                response = f"Cracking Sessions ({result['count']} total)\n\n"
                 if result["sessions"]:
                     for session in result["sessions"]:
-                        response += f"  • {session['name']} ({session['size_bytes']} bytes)\n"
+                        response += f"  {session['name']} ({session['size_bytes']} bytes)\n"
                 else:
-                    response += "No sessions found.\n"
+                    response += "No sessions found\n"
             elif result["action"] == "delete":
-                response = f"✅ {result['message']}"
+                response = result['message']
             elif result["action"] == "info":
-                response = f"ℹ️  Session Information\n\n"
+                response = f"Session Information\n\n"
                 response += f"Name: {result['session_name']}\n"
                 response += f"Size: {result['size_bytes']} bytes\n"
                 response += f"Last modified: {result['last_modified']}\n"
                 response += f"File: {result['file_path']}\n"
         else:
-            response = f"❌ Error: {result.get('error', 'Unknown error')}"
+            response = f"Error: {result.get('error', 'Unknown error')}"
         
         return [TextContent(type="text", text=response)]
     
@@ -230,14 +195,14 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         result = await check_status_tool()
         
         if result["success"]:
-            response = f"📊 John the Ripper Status\n\n"
+            response = f"Status\n\n"
             response += f"Total cracked: {result['cracked_count']} passwords\n"
-            
+
             if result['pot_file']:
                 response += f"Pot file: {result['pot_file']}\n"
                 if result.get('last_updated'):
                     response += f"Last updated: {result['last_updated']}\n"
-            
+
             if result.get('recent_cracks'):
                 response += f"\nRecent cracks (last 5):\n"
                 for crack in result['recent_cracks']:
@@ -245,32 +210,32 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             elif result['cracked_count'] == 0:
                 response += f"\n{result['message']}\n"
         else:
-            response = f"❌ Error: {result.get('error', 'Unknown error')}"
+            response = f"Error: {result.get('error', 'Unknown error')}"
         
         return [TextContent(type="text", text=response)]
     
     elif name == "list_hash_formats":
         formats = jtr.get_formats()
-        
-        response = f"📋 Supported Hash Formats ({len(formats)} total)\n\n"
-        response += "Common Linux formats:\n"
+
+        response = f"Supported Hash Formats ({len(formats)} total)\n\n"
+        response += "Common formats:\n"
         for fmt, desc in HASH_FORMATS.items():
-            response += f"  • {fmt}: {desc}\n"
-        
-        response += f"\nTotal formats available: {len(formats)}\n"
-        response += "Use 'john --list=formats' for complete list."
-        
+            response += f"  {fmt}: {desc}\n"
+
+        response += f"\nTotal: {len(formats)} formats\n"
+        response += "Run 'john --list=formats' for full list"
+
         return [TextContent(type="text", text=response)]
-    
+
     elif name == "get_jtr_info":
         version = jtr.get_version()
         formats = jtr.get_formats()
-        
-        response = f"ℹ️  John the Ripper Information\n\n"
+
+        response = f"John the Ripper Info\n\n"
         response += f"Version: {version}\n"
-        response += f"Total formats: {len(formats)}\n"
-        response += f"Command: {jtr.john_binary}\n"
-        
+        response += f"Formats: {len(formats)}\n"
+        response += f"Binary: {jtr.john_binary}\n"
+
         return [TextContent(type="text", text=response)]
     
     else:
@@ -278,10 +243,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 
 async def main():
-    """Run the MCP server"""
-    logger.info("Starting main() server loop...")
+    logger.debug("Starting server loop")
     async with stdio_server() as (read_stream, write_stream):
-        logger.info("STDIO server started, running app...")
         await app.run(
             read_stream,
             write_stream,
