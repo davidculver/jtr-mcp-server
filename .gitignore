@@ -51,3 +51,4 @@ sessions/
 tmp/
 temp/
 *.tmp
+*.old
