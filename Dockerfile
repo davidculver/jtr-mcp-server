@@ -65,6 +65,12 @@ COPY src/ ./src/
 COPY wordlists/ ./wordlists/
 COPY scripts/ ./scripts/
 
+# Download rockyou.txt wordlist during build
+RUN mkdir -p /app/wordlists/common && \
+    cd /app/wordlists/common && \
+    wget https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt && \
+    echo "Downloaded rockyou.txt ($(du -h rockyou.txt | cut -f1))"
+
 RUN mkdir -p sessions results temp logs
 
 # Environment
