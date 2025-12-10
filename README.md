@@ -84,6 +84,3 @@ MIT
 
 For authorized use only. Intended for pentesting, security research, and password auditing with permission. Unauthorized access is illegal.
 
-## Contributing
-
-PRs welcome

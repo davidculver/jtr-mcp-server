@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     libkrb5-dev \
     pkg-config \
     git \
+    wget \
     python3.12 \
     python3-pip \
     python3-venv \
