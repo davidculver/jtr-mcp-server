@@ -6,7 +6,7 @@ set -e
 IMAGE_NAME="jtr-mcp-server"
 IMAGE_TAG="latest"
 
-echo "🔍 Starting MCP Inspector with Docker container"
+echo "Starting MCP Inspector with Docker container"
 echo ""
 echo "This will:"
 echo "  1. Start the MCP Inspector web UI"

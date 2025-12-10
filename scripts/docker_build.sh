@@ -6,7 +6,7 @@ set -e
 IMAGE_NAME="jtr-mcp-server"
 IMAGE_TAG="latest"
 
-echo "🐳 Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
+echo "Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
 echo "This may take 5-10 minutes on first build..."
 
 docker build \
@@ -15,10 +15,10 @@ docker build \
     .
 
 echo ""
-echo "✅ Build complete!"
+echo " Build complete!"
 echo ""
-echo "📦 Image: ${IMAGE_NAME}:${IMAGE_TAG}"
-echo "📏 Size: $(docker images ${IMAGE_NAME}:${IMAGE_TAG} --format '{{.Size}}')"
+echo " Image: ${IMAGE_NAME}:${IMAGE_TAG}"
+echo " Size: $(docker images ${IMAGE_NAME}:${IMAGE_TAG} --format '{{.Size}}')"
 echo ""
 echo "To run the server:"
 echo "  ./scripts/docker_run.sh"

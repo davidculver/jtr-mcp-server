@@ -6,7 +6,7 @@ set -e
 IMAGE_NAME="jtr-mcp-server"
 IMAGE_TAG="latest"
 
-echo "🚀 Starting JTR MCP Server in Docker (STDIO mode)"
+echo "Starting JTR MCP Server in Docker (STDIO mode)"
 echo "Press Ctrl+C to stop"
 echo ""
 

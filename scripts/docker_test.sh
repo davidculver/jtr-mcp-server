@@ -6,7 +6,7 @@ set -e
 IMAGE_NAME="jtr-mcp-server"
 IMAGE_TAG="latest"
 
-echo "🧪 Testing Docker container..."
+echo "Testing Docker container..."
 
 # Test that john is installed
 echo "1. Checking John the Ripper installation..."
@@ -21,4 +21,4 @@ echo "3. Checking MCP server can start..."
 timeout 2 docker run --rm -i ${IMAGE_NAME}:${IMAGE_TAG} || true
 
 echo ""
-echo "✅ All tests passed!"
+echo "All tests passed!"
