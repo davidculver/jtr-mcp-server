@@ -35,8 +35,8 @@ htmlcov/
 Thumbs.db
 
 # Wordlists (large files)
-wordlists/rockyou.txt
-wordlists/rockyou.txt.gz
+wordlists/**/rockyou.txt
+wordlists/**/rockyou.txt.gz
 
 # Sensitive data
 *.pot
